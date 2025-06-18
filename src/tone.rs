@@ -36,11 +36,11 @@ impl Tone {
     pub fn _instrument(&self, channel: u8, instrument: u8) -> [u8; 2] {
         [0xd0 | channel, instrument & 0x7f]
     }
-    
+
     pub fn tone(&self) -> u8 {
         self.0 % Self::TONE_CNT
     }
-    
+
     pub fn octave(&self) -> i8 {
         (self.0 / Self::TONE_CNT) as i8 - Self::OCTAVE_SHIFT as i8
     }
@@ -63,7 +63,7 @@ impl Display for Tone {
             11 => write!(f, "h")?,
             _ => unreachable!(),
         }
-        
+
         write!(f, "{}", self.octave())
     }
 }

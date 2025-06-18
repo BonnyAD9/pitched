@@ -2,8 +2,8 @@ use std::{env, thread, time::Duration};
 
 use anyhow::{Result, bail};
 use midir::MidiOutput;
-use rand::{rng, Rng};
-use termal::{codes, printcln, raw::readers::{prompt_to, read_line}};
+use rand::{Rng, rng};
+use termal::{printcln, raw::readers::prompt_to};
 
 use crate::tone::Tone;
 
@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     if args.len() != 2 {
         bail!("Invalid number of arguments!");
     }
-    
+
     let port: &str = &args[1];
 
     let out = MidiOutput::new("pitched-midi-out")?;
@@ -33,11 +33,11 @@ fn main() -> Result<()> {
     let Some(mut conn) = conn else {
         bail!("No midi port.");
     };
-    
+
     let range = 60..72;
     let mut rng = rng();
     let mut buf = String::new();
-    
+
     loop {
         let t = rng.random_range(range.clone());
         let tone = Tone(t);
@@ -64,6 +64,6 @@ fn main() -> Result<()> {
             printcln!("{'r}Failure!{'_} {tone} (not {t})");
         }
     }
-    
+
     Ok(())
 }
