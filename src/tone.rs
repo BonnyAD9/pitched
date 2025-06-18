@@ -1,8 +1,8 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use pareg::{ArgError, FromArgStr};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Tone(pub u8);
 
 mod note {
@@ -35,6 +35,36 @@ impl Tone {
 
     pub fn _instrument(&self, channel: u8, instrument: u8) -> [u8; 2] {
         [0xd0 | channel, instrument & 0x7f]
+    }
+    
+    pub fn tone(&self) -> u8 {
+        self.0 % Self::TONE_CNT
+    }
+    
+    pub fn octave(&self) -> i8 {
+        (self.0 / Self::TONE_CNT) as i8 - Self::OCTAVE_SHIFT as i8
+    }
+}
+
+impl Display for Tone {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.tone() {
+            0 => write!(f, "c")?,
+            1 => write!(f, "cis")?,
+            2 => write!(f, "d")?,
+            3 => write!(f, "dis")?,
+            4 => write!(f, "e")?,
+            5 => write!(f, "f")?,
+            6 => write!(f, "fis")?,
+            7 => write!(f, "g")?,
+            8 => write!(f, "gis")?,
+            9 => write!(f, "a")?,
+            10 => write!(f, "ais")?,
+            11 => write!(f, "h")?,
+            _ => unreachable!(),
+        }
+        
+        write!(f, "{}", self.octave())
     }
 }
 

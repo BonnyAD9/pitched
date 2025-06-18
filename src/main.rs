@@ -1,14 +1,21 @@
-use std::{thread, time::Duration};
+use std::{env, thread, time::Duration};
 
 use anyhow::{Result, bail};
 use midir::MidiOutput;
+use rand::{rng, Rng};
+use termal::{codes, printcln, raw::readers::{prompt_to, read_line}};
 
 use crate::tone::Tone;
 
 mod tone;
 
 fn main() -> Result<()> {
-    let port = "128:0";
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        bail!("Invalid number of arguments!");
+    }
+    
+    let port: &str = &args[1];
 
     let out = MidiOutput::new("pitched-midi-out")?;
     let mut conn = None;
@@ -26,14 +33,37 @@ fn main() -> Result<()> {
     let Some(mut conn) = conn else {
         bail!("No midi port.");
     };
-
-    let tone: Tone = "A4".parse()?;
-
-    conn.send(&tone.press(0, 127))?;
-
-    thread::sleep(Duration::from_secs(1));
-
-    conn.send(&tone.release(0, 127))?;
-
+    
+    let range = 60..72;
+    let mut rng = rng();
+    let mut buf = String::new();
+    
+    loop {
+        let t = rng.random_range(range.clone());
+        let tone = Tone(t);
+        conn.send(&tone.press(0, 127))?;
+        thread::sleep(Duration::from_millis(500));
+        conn.send(&tone.release(0, 127))?;
+        buf.clear();
+        prompt_to(&mut buf, "> ")?;
+        println!();
+        if buf == "q" {
+            break;
+        }
+        let mut t: Tone = match buf.parse() {
+            Ok(t) => t,
+            Err(e) => {
+                println!("{e}");
+                continue;
+            }
+        };
+        t.0 -= 12; // Change the default octave 4 to octave 3
+        if t == tone {
+            printcln!("{'g}Success!{'_}");
+        } else {
+            printcln!("{'r}Failure!{'_} {tone} (not {t})");
+        }
+    }
+    
     Ok(())
 }

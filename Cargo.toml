@@ -7,3 +7,5 @@ edition = "2024"
 anyhow = "1.0.98"
 midir = "0.10.1"
 pareg = "0.10.0"
+rand = "0.9.1"
+termal = { version = "3.0.1", features = ["readers"] }
