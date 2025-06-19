@@ -1,38 +1,35 @@
-use std::{env, thread, time::Duration};
+use std::{process::ExitCode, thread, time::Duration};
 
-use anyhow::{Result, bail};
-use midir::MidiOutput;
+use midir::{MidiOutput, MidiOutputConnection};
+use pareg::Pareg;
 use rand::{Rng, rng};
-use termal::{printcln, raw::readers::prompt_to};
+use termal::{eprintacln, printcln, raw::readers::prompt_to};
 
-use crate::tone::Tone;
+use crate::{cli::Args, err::{Error, Result}, tone::Tone};
 
 mod tone;
+mod err;
+mod cli;
 
-fn main() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        bail!("Invalid number of arguments!");
-    }
-
-    let port: &str = &args[1];
-
-    let out = MidiOutput::new("pitched-midi-out")?;
-    let mut conn = None;
-
-    for p in out.ports() {
-        if p.id() == port {
-            conn = Some(
-                out.connect(&p, "pitched-midi-play")
-                    .map_err(|e| anyhow::Error::msg(e.to_string()))?,
-            );
-            break;
+fn main() -> ExitCode {
+    match start() {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintacln!("{'r}error: {e}");
+            ExitCode::FAILURE
         }
     }
+}
 
-    let Some(mut conn) = conn else {
-        bail!("No midi port.");
-    };
+fn start() -> Result<()> {
+    let mut args = Args::parse(Pareg::args().get_mut_ref())?;
+    
+    if !args.run() {
+        return Ok(());
+    }
+
+    let out = MidiOutput::new("pitched-midi-out")?;
+    let mut conn = midi_connect(out, args.midi_port.take())?;
 
     let range = 60..72;
     let mut rng = rng();
@@ -66,4 +63,21 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn midi_connect(out: MidiOutput, port: Option<String>) -> Result<MidiOutputConnection> {
+    if let Some(port) = port {
+        for p in out.ports() {
+            if p.id() == port {
+                return Ok(out.connect(&p, "pitched-midi-play")?);
+            }
+        }
+        Err(Error::NoMidiPort(port))
+    } else {
+        let ports = out.ports();
+        let Some(p) = ports.last() else {
+            return Err(Error::NoMidiPort(String::new()));
+        };
+        Ok(out.connect(&p, "pitched-midi-play")?)
+    }
 }
