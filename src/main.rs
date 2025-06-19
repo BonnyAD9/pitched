@@ -5,11 +5,15 @@ use pareg::Pareg;
 use rand::{Rng, rng};
 use termal::{eprintacln, printcln, raw::readers::prompt_to};
 
-use crate::{cli::Args, err::{Error, Result}, tone::Tone};
+use crate::{
+    cli::Args,
+    err::{Error, Result},
+    tone::Tone,
+};
 
-mod tone;
-mod err;
 mod cli;
+mod err;
+mod tone;
 
 fn main() -> ExitCode {
     match start() {
@@ -23,7 +27,7 @@ fn main() -> ExitCode {
 
 fn start() -> Result<()> {
     let mut args = Args::parse(Pareg::args().get_mut_ref())?;
-    
+
     if !args.run() {
         return Ok(());
     }
@@ -65,7 +69,10 @@ fn start() -> Result<()> {
     Ok(())
 }
 
-fn midi_connect(out: MidiOutput, port: Option<String>) -> Result<MidiOutputConnection> {
+fn midi_connect(
+    out: MidiOutput,
+    port: Option<String>,
+) -> Result<MidiOutputConnection> {
     if let Some(port) = port {
         for p in out.ports() {
             if p.id() == port {
@@ -78,6 +85,6 @@ fn midi_connect(out: MidiOutput, port: Option<String>) -> Result<MidiOutputConne
         let Some(p) = ports.last() else {
             return Err(Error::NoMidiPort(String::new()));
         };
-        Ok(out.connect(&p, "pitched-midi-play")?)
+        Ok(out.connect(p, "pitched-midi-play")?)
     }
 }

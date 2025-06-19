@@ -11,7 +11,7 @@ pub struct Args {
 impl Args {
     pub fn parse(mut args: ParegRef) -> Result<Self> {
         let mut res = Self::default();
-        
+
         while let Some(arg) = args.next() {
             match arg {
                 "-h" | "-?" | "--help" => {
@@ -22,10 +22,10 @@ impl Args {
                 _ => args.err_unknown_argument().err()?,
             }
         }
-        
+
         Ok(res)
     }
-    
+
     pub fn run(&self) -> bool {
         !self.helped || self.midi_port.is_some()
     }

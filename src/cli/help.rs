@@ -1,4 +1,7 @@
-use std::{borrow::Cow, io::{stdout, IsTerminal}};
+use std::{
+    borrow::Cow,
+    io::{IsTerminal, stdout},
+};
 
 use termal::{gradient, printmcln};
 
@@ -10,7 +13,7 @@ pub fn help() {
         "BonnyAD9".into()
     };
     let version = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
-    
+
     printmcln!(
         color,
         "Welcome in help for {'g i}pitched{'_} by {sign}.
