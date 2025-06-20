@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
-use pareg::{ArgError, FromRead, reader::AutoSetFromRead};
+use pareg::{ArgError, FromArgStr, FromRead, parsef, reader::AutoSetFromRead};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Tone(pub u8);
@@ -70,10 +70,6 @@ impl Display for Tone {
         write!(f, "{}", self.octave())
     }
 }
-
-pareg::impl_from_arg_str_with_read!(Tone);
-
-impl AutoSetFromRead for Tone {}
 
 impl FromRead for Tone {
     fn from_read<'a>(
@@ -166,5 +162,18 @@ impl FromRead for Tone {
         }
 
         Ok((Self(tone), None))
+    }
+}
+
+impl AutoSetFromRead for Tone {}
+impl FromArgStr for Tone {}
+
+impl FromStr for Tone {
+    type Err = ArgError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut tone = Tone(0);
+        parsef!(&mut s.into(), "{tone}")?;
+        Ok(tone)
     }
 }

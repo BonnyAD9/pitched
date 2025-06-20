@@ -3,7 +3,7 @@ use std::{process::ExitCode, thread, time::Duration};
 use midir::{MidiOutput, MidiOutputConnection};
 use pareg::Pareg;
 use rand::{Rng, rng};
-use termal::{eprintacln, printacln, printcln, raw::readers::prompt_to};
+use termal::{eprintacln, printacln, raw::readers::prompt_to};
 
 use crate::{
     cli::{Args, help_inside},
@@ -45,6 +45,9 @@ fn start() -> Result<()> {
 
     printacln!("Type {'c}help{'_} to show help.");
 
+    let mut success: u32 = 0;
+    let mut failed: u32 = 0;
+
     loop {
         conn.send(&tone.press(0, 127))?;
         thread::sleep(Duration::from_millis(500));
@@ -76,10 +79,16 @@ fn start() -> Result<()> {
             t.tone() == tone.tone()
         };
         if val {
-            printcln!("{'g}Success!{'_}");
+            printacln!("{'g}Success!{'_}");
+            success += 1;
         } else {
-            printcln!("{'r}Failure!{'_} {tone}");
+            printacln!("{'r}Failure!{'_} {tone}");
+            failed += 1;
         }
+        printacln!(
+            "{'dg}{success}{'gr}:{'dr}{failed}{'gr} {:.2}%{'_}",
+            (success as f32 / (failed + success) as f32) * 100. + 0.0001
+        );
         tone = Tone(rng.random_range(range.clone()));
     }
 
