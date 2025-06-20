@@ -3,10 +3,10 @@ use std::{process::ExitCode, thread, time::Duration};
 use midir::{MidiOutput, MidiOutputConnection};
 use pareg::Pareg;
 use rand::{Rng, rng};
-use termal::{eprintacln, printcln, raw::readers::prompt_to};
+use termal::{eprintacln, printacln, printcln, raw::readers::prompt_to};
 
 use crate::{
-    cli::Args,
+    cli::{Args, help_inside},
     err::{Error, Result},
     tone::Tone,
 };
@@ -35,35 +35,52 @@ fn start() -> Result<()> {
     let out = MidiOutput::new("pitched-midi-out")?;
     let mut conn = midi_connect(out, args.midi_port.take())?;
 
-    let range = 60..72;
+    let range = args.tone_range.start.0..args.tone_range.end.0;
+    let octave_check = range.end - range.start > 12;
+
     let mut rng = rng();
     let mut buf = String::new();
 
+    let mut tone = Tone(rng.random_range(range.clone()));
+
+    printacln!("Type {'c}help{'_} to show help.");
+
     loop {
-        let t = rng.random_range(range.clone());
-        let tone = Tone(t);
         conn.send(&tone.press(0, 127))?;
         thread::sleep(Duration::from_millis(500));
         conn.send(&tone.release(0, 127))?;
         buf.clear();
         prompt_to(&mut buf, "> ")?;
         println!();
-        if buf == "q" {
-            break;
+
+        match buf.as_str() {
+            "q" | "quit" => break,
+            "?" | "help" => {
+                help_inside();
+                continue;
+            }
+            "" => continue,
+            _ => {}
         }
-        let mut t: Tone = match buf.parse() {
+
+        let t: Tone = match buf.parse() {
             Ok(t) => t,
             Err(e) => {
                 println!("{e}");
                 continue;
             }
         };
-        t.0 -= 12; // Change the default octave 4 to octave 3
-        if t == tone {
+        let val = if octave_check {
+            t == tone
+        } else {
+            t.tone() == tone.tone()
+        };
+        if val {
             printcln!("{'g}Success!{'_}");
         } else {
             printcln!("{'r}Failure!{'_} {tone} (not {t})");
         }
+        tone = Tone(rng.random_range(range.clone()));
     }
 
     Ok(())
@@ -85,6 +102,11 @@ fn midi_connect(
         let Some(p) = ports.last() else {
             return Err(Error::NoMidiPort(String::new()));
         };
+        eprintln!(
+            "Choosing port {} ({})",
+            p.id(),
+            out.port_name(p).unwrap_or_default()
+        );
         Ok(out.connect(p, "pitched-midi-play")?)
     }
 }

@@ -1,8 +1,8 @@
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 
-use pareg::{ArgError, FromArgStr};
+use pareg::{ArgError, FromRead, reader::AutoSetFromRead};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Tone(pub u8);
 
 mod note {
@@ -19,9 +19,12 @@ impl Tone {
     pub const OCTAVE_SHIFT: u8 = 2;
     pub const TONE_CNT: u8 = 12;
 
-    pub const _A4: Self = Self::_new(note::A, 4);
+    pub const _A4: Self = Self::new(note::A, 4);
 
-    pub const fn _new(tone: u8, octave: u8) -> Self {
+    pub const C3: Self = Self::new(note::C, 3);
+    pub const C4: Self = Self::new(note::C, 4);
+
+    pub const fn new(tone: u8, octave: u8) -> Self {
         Self(tone + (octave + Self::OCTAVE_SHIFT) * Self::TONE_CNT)
     }
 
@@ -68,15 +71,19 @@ impl Display for Tone {
     }
 }
 
-impl FromArgStr for Tone {}
+pareg::impl_from_arg_str_with_read!(Tone);
 
-impl FromStr for Tone {
-    type Err = pareg::ArgError;
+impl AutoSetFromRead for Tone {}
 
-    fn from_str(arg: &str) -> pareg::Result<Self> {
-        let Some(tone) = arg.chars().next() else {
-            return ArgError::parse_msg("Missing tone name.", arg.to_string())
-                .err();
+impl FromRead for Tone {
+    fn from_read<'a>(
+        r: &mut pareg::Reader,
+        _fmt: &'a pareg::ReadFmt<'a>,
+    ) -> pareg::Result<(Self, Option<ArgError>)> {
+        let pos = r.pos();
+
+        let Some(tone) = r.next()? else {
+            return r.err_parse("Missing tone name.").err();
         };
 
         let tone = match tone.to_ascii_lowercase() {
@@ -88,48 +95,53 @@ impl FromStr for Tone {
             'a' => note::A,
             'b' => note::B,
             'h' => note::B,
-            _ => {
-                return ArgError::parse_msg(
-                    format!("Invalid tone name `{tone}`."),
-                    arg.to_string(),
-                )
-                .err();
-            }
+            _ => return r.err_parse("Invalid tone name `{tone}`").err(),
         };
 
-        let modifier = arg[1..].trim_end_matches(|c: char| c.is_ascii_digit());
-        let octave = &arg[modifier.len() + 1..];
-
-        let modifier = match modifier {
-            "s" | "es" | "b" => -1,
-            "is" | "#" => 1,
-            "" => 0,
-            _ => {
-                return ArgError::parse_msg(
-                    format!("Invalid modifer `{modifier}`."),
-                    arg.to_string(),
-                )
-                .err();
+        let modifier = match r.peek()? {
+            Some('s' | 'b') => {
+                r.next()?;
+                -1
             }
+            Some('#') => {
+                r.next()?;
+                1
+            }
+            Some(c @ ('e' | 'i')) => {
+                r.next()?;
+                if !matches!(r.peek()?, Some('s')) {
+                    r.unnext(c);
+                    0
+                } else if c == 'e' {
+                    r.next()?;
+                    -1
+                } else {
+                    r.next()?;
+                    1
+                }
+            }
+            _ => 0,
         };
 
-        let octave = if octave.is_empty() {
-            4
-        } else {
-            octave.parse::<i8>().map_err(|e| {
-                ArgError::parse_msg(
-                    format!("Invalid octave: {e}."),
-                    arg.to_string(),
-                )
-            })?
+        let octave = match r.peek()? {
+            Some(c) if c.is_ascii_digit() => i8::from_read(r, &"".into())?.0,
+            Some('-') => {
+                r.next()?;
+                if matches!(r.peek()?, Some(c) if c.is_ascii_digit()) {
+                    r.unnext('-');
+                    i8::from_read(r, &"".into())?.0
+                } else {
+                    r.unnext('-');
+                    4
+                }
+            }
+            _ => 4,
         };
 
         let err_range = || {
-            ArgError::parse_msg(
-                "The tone is out of supported range.",
-                arg.to_string(),
-            )
-            .err()
+            r.err_parse("The tone is out of supported range.")
+                .span_start(pos)
+                .err()
         };
 
         let Some(octave) = Self::OCTAVE_SHIFT.checked_add_signed(octave)
@@ -153,6 +165,6 @@ impl FromStr for Tone {
             return err_range();
         }
 
-        Ok(Self(tone))
+        Ok((Self(tone), None))
     }
 }
