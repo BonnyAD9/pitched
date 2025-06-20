@@ -78,7 +78,7 @@ fn start() -> Result<()> {
         if val {
             printcln!("{'g}Success!{'_}");
         } else {
-            printcln!("{'r}Failure!{'_} {tone} (not {t})");
+            printcln!("{'r}Failure!{'_} {tone}");
         }
         tone = Tone(rng.random_range(range.clone()));
     }
